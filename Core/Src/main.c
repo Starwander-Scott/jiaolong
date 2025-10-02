@@ -47,6 +47,12 @@
 
 /* USER CODE BEGIN PV */
 uint32_t ticks;
+
+uint8_t rx_msg[4];
+
+
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -57,30 +63,10 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-// 单位Hz
-
-//    // 计算定时器ARR值以产生对应频率
-//    // PWM频率 = 定时器时钟 / (ARR + 1)
-//    uint32_t arr = (1000000 / frequency) - 1; // 定时器时钟已分频至1MHz
-//    __HAL_TIM_SET_AUTORELOAD(&htim1, arr);
-//    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, arr / 2); // 设置50%占空比
-//
-//    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1); // 确保定时器启动
-//}
-//
-//void Play_SingleNote(uint16_t tune, float beat, uint32_t bpm) {
-//    // 计算音符持续时间 (毫秒)
-//    // 每拍的时长 = (60秒 / BPM) * 1000毫秒
-//    uint32_t duration_ms = (60000 / bpm) * beat;
-//
-//    Buzzer_SetFrequency(tune); // 设置频率
-//    HAL_Delay(duration_ms);    // 持续节拍时长
-//    Buzzer_SetFrequency(0);    // 停止发声，间隔
-//}
 
 
-int status = 0;
-int flag = 0;
+
+
 
 
 /* USER CODE END 0 */
@@ -102,6 +88,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  HAL_Init();
 
   /* USER CODE END Init */
 
@@ -115,13 +102,11 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM1_Init();
-  MX_IWDG_Init();
+//  MX_IWDG_Init();
   MX_UART7_Init();
   /* USER CODE BEGIN 2 */
-//  HAL_TIM_Base_Start_IT(&htim1);
-//  HAL_GPIO_WritePin(LEDG_GPIO_Port,LEDG_Pin,GPIO_PIN_SET);
-//  HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_2);
-  uint8_t tx_msg[] = "RoboMaster";
+  HAL_UART_Receive_IT(&huart7, rx_msg, 1);
+//  uint8_t tx_msg[] = "RoboMaster";
 
   /* USER CODE END 2 */
 
@@ -133,8 +118,8 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    HAL_UART_Transmit(&huart7, tx_msg, sizeof(tx_msg), 1000);
-    HAL_Delay(1000);
+//    HAL_UART_Transmit(&huart7, tx_msg, sizeof(tx_msg), 1000);
+//    HAL_Delay(1000);
 
 
 
