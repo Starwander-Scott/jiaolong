@@ -1,6 +1,8 @@
 //
 // Created by chenyincheng on 2025/10/3.
 //
+
+//这里定义了电机的一些参数，包括电机减速比、电流、转速等
 float linearMapping(int in, int in_min, int in_max, float out_min,
                     float out_max) {
     return out_min + (out_max - out_min) * (in - in_min) / (in_max - in_min);
