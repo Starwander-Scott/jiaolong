@@ -3,12 +3,15 @@
 //
 
 //这里定义了电机的一些参数，包括电机减速比、电流、转速等
-float linearMapping(int in, int in_min, int in_max, float out_min,
-                    float out_max) {
-    return out_min + (out_max - out_min) * (in - in_min) / (in_max - in_min);
-}
+#ifndef __MOTOR_H__
+#define __MOTOR_H__
 
-class M3508_Motor {
+#include "pid.h"
+#include "stdint.h"
+float linearMapping(int in, int in_min, int in_max, float out_min,
+                    float out_max);
+
+class Motor {
 private:
     float ratio_;                // 电机减速比
     float angle_ = 0.f;          // deg 输出端累计转动角度
@@ -38,12 +41,28 @@ private:
 
 public:
     //explicit M3508_Motor(const float ratio) : ratio_(ratio) {};
+
+    // 获取当前角度（基于编码器）
+    float getCurrentAngle();
+
+    // 获取当前速度（基于编码器变化）
+    float getCurrentSpeed();
+
+    // 设置电机电流
+    void setCurrent(float current);
+
+    // CAN发送函数（用于设置电流）
+    //void sendCurrentToMotor(int16_t current);
+
+
     void canRxMsgCallback(const uint8_t rx_data[8]);
 
-    M3508_Motor(float reduction_ratio);// 修改构造函数
-    void handle();                     // 处理函数，根据控制模式计算输出
+    Motor(float reduction_ratio);// 修改构造函数
+    void handle();               // 处理函数，根据控制模式计算输出
 
     void SetPosition(float target_position, float feedforward_speed, float feedforward_intensity);
     void SetSpeed(float target_speed, float feedforward_intensity);
     void SetIntensity(float intensity);
 };
+
+#endif//__MOTOR_H__

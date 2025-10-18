@@ -4,8 +4,14 @@
 
 #include "motor.h"
 #include "pid.h"
+#include "stdint.h"
 
-M3508_Motor::Motor(float reduction_ratio)
+float linearMapping(int in, int in_min, int in_max, float out_min,
+                    float out_max) {
+    return out_min + (out_max - out_min) * (in - in_min) / (in_max - in_min);
+}
+
+Motor::Motor(float reduction_ratio)
     :
 
 
@@ -28,8 +34,50 @@ M3508_Motor::Motor(float reduction_ratio)
     // 其他初始化代码...
 }
 
+// 获取当前角度（输出轴角度）
+float Motor::getCurrentAngle() {
+    // 直接返回已经计算好的输出轴累计角度
+    return angle_;
+}
 
-void M3508_Motor::canRxMsgCallback(const uint8_t rx_data[8]) {
+// 获取当前速度（输出轴速度，单位dps）
+float Motor::getCurrentSpeed() {
+    // 将转子转速(rpm)转换为输出轴速度(dps)
+    // rpm转dps: rpm * 360 / 60 = rpm * 6
+    // 考虑减速比: 转子转速 / 减速比 = 输出轴转速
+    return (rotate_speed_ / ratio_) * 6.0f;
+}
+
+// 设置电机电流
+void Motor::setCurrent(float current) {
+    // 电流限幅保护
+    const float MAX_CURRENT = 20.0f;// 最大电流20A
+
+    if (current > MAX_CURRENT) {
+        current = MAX_CURRENT;
+    } else if (current < -MAX_CURRENT) {
+        current = -MAX_CURRENT;
+    }
+
+    output_intensity_ = current;
+
+    // 转换为电机驱动器能识别的格式（-16384~16384对应-20A~20A）
+    int16_t current_raw = static_cast<int16_t>(linearMapping(current, -20.0f, 20.0f, -16384.0f, 16384.0f));
+
+    // 发送电流指令
+    //sendCurrentToMotor(current_raw);
+}
+
+// CAN发送电流指令（需要根据实际硬件实现）
+//void Motor::sendCurrentToMotor(int16_t current) {
+// 这里需要根据您的CAN协议实现
+// 示例：将电流值打包并发送给电机驱动器
+// uint8_t data[8] = {...};
+// CAN_Send(motor_id, data);
+//}
+
+
+void Motor::canRxMsgCallback(const uint8_t rx_data[8]) {
     // a. 解析16位数据 - 转子机械角度
     uint16_t ecd_angle_raw = (rx_data[0] << 8) | rx_data[1];
 
@@ -134,5 +182,4 @@ void Motor::handle() {
     }
 }
 
-
-M3508_Motor Motor(3591 / 187.0f);
+Motor Motor(3591 / 187.0f);
