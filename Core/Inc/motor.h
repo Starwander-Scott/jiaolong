@@ -8,6 +8,7 @@
 
 #include "pid.h"
 #include "stdint.h"
+extern uint8_t stop_flag;
 float linearMapping(int in, int in_min, int in_max, float out_min,
                     float out_max);
 
@@ -63,6 +64,8 @@ public:
     void SetPosition(float target_position, float feedforward_speed, float feedforward_intensity);
     void SetSpeed(float target_speed, float feedforward_intensity);
     void SetIntensity(float intensity);
+    float FeedforwardIntensityCalc(float current_angle);
+    void Motor_Stop();
 };
 
 #endif//__MOTOR_H__

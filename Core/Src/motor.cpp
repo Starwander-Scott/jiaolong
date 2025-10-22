@@ -5,6 +5,16 @@
 #include "motor.h"
 #include "pid.h"
 #include "stdint.h"
+#include <math.h>
+
+#include "can.h"// 新增：确保 CAN 类型可用并包含 HAL 声明
+extern uint8_t stop_flag;
+// 声明在其它文件（例如 main.c / callback.cpp）定义的全局 CAN 相关变量
+extern CAN_HandleTypeDef hcan1;
+extern CAN_TxHeaderTypeDef tx_header;
+extern uint8_t tx_data[8];
+extern uint32_t can_tx_mail_box_;
+
 
 float linearMapping(int in, int in_min, int in_max, float out_min,
                     float out_max) {
@@ -51,6 +61,7 @@ float Motor::getCurrentSpeed() {
 // 设置电机电流
 void Motor::setCurrent(float current) {
     // 电流限幅保护
+    control_method_ = TORQUE;
     const float MAX_CURRENT = 20.0f;// 最大电流20A
 
     if (current > MAX_CURRENT) {
@@ -66,6 +77,13 @@ void Motor::setCurrent(float current) {
 
     // 发送电流指令
     //sendCurrentToMotor(current_raw);
+
+    // 修改：打包 CAN 报文并发送（按照常见协议把电流放入 data[0..1]，大端）
+    tx_data[0] = static_cast<uint8_t>((current_raw >> 8) & 0xFF);
+    tx_data[1] = static_cast<uint8_t>((current_raw) & 0xFF);
+    // 其余字节可以按协议填充或保留为0
+    // 发送电流指令
+    HAL_CAN_AddTxMessage(&hcan1, &tx_header, tx_data, &can_tx_mail_box_);
 }
 
 // CAN发送电流指令（需要根据实际硬件实现）
@@ -139,12 +157,24 @@ void Motor::SetIntensity(float intensity) {
     control_method_ = TORQUE;
     output_intensity_ = intensity;
 }
+//这个setIntensity函数不用了，用handle里面直接用output_intensity_就行
+
+
+void Motor::Motor_Stop() {
+    // 停止电机，设置电流为0
+    setCurrent(0.0f);        // 停止电机
+    control_method_ = TORQUE;// 切换到扭矩控制
+}
 
 
 void Motor::handle() {
     // 获取当前反馈值（需要根据实际电机接口实现）
     fdb_angle_ = getCurrentAngle();// 获取当前角度
     fdb_speed_ = getCurrentSpeed();// 获取当前速度
+
+    if (stop_flag == 1) {
+        Motor_Stop();
+    }
 
     switch (control_method_) {
         case TORQUE: {
@@ -181,5 +211,43 @@ void Motor::handle() {
             break;
     }
 }
+
+float Motor::FeedforwardIntensityCalc(float current_angle) {
+    // 常量（依据图片规格）
+    const float mass = 0.5f;            // kg
+    const float lever = 0.05524f;       // m (55.24 mm)
+    const float g = 9.80665f;           // m/s^2
+    const float K_T = 0.3f;             // Nm/A，来自 3 N·m / 10 A
+    const float MAX_CURRENT = 10.0f;    // A，额定持续电流
+    const float MIN_HOLD_CURRENT = 0.1f;// A，静摩擦补偿（可调）
+
+
+    // 角度转弧度
+    const float PI = 3.14159265358979323846f;
+    float rad = current_angle * PI / 180.0f;
+
+    // 输出轴重力矩（臂长度 lever）
+    float torque_out = mass * g * lever * std::sinf(rad);// Nm
+
+    //    // 电机侧所需转矩（使用对象的减速比 ratio_）
+    //    float torque_motor = torque_out / ratio_;// Nm
+    //根据同学的要求，大疆电机的K_T已经包含这个减速比的影响了，所以不需要再除以ratio_
+
+
+    // 转换为电流（可正负）
+    float current = torque_out / K_T;// A
+
+    //    // 最低保持电流阈值以克服静摩擦
+    //    if (std::fabs(current) > 0.0f && std::fabs(current) < MIN_HOLD_CURRENT) {
+    //        current = (current > 0.0f) ? MIN_HOLD_CURRENT : -MIN_HOLD_CURRENT;
+    //    }
+
+    // 限幅到额定电流
+    if (current > MAX_CURRENT) current = MAX_CURRENT;
+    if (current < -MAX_CURRENT) current = -MAX_CURRENT;
+
+    return current;
+}
+
 
 Motor Motor(3591 / 187.0f);
