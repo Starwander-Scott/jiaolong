@@ -42,7 +42,7 @@ private:
 
     // 控制相关变量
     float target_angle_, fdb_angle_;
-    float target_speed_, fdb_speed_, feedforward_speed_;
+    float target_speed_ = 0, fdb_speed_, feedforward_speed_;
     float feedforward_intensity_, output_intensity_;
     float gravity_ff = 0.0f;
     uint16_t current_raw_ = 0;

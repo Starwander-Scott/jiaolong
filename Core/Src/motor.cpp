@@ -40,8 +40,16 @@ Motor::Motor(float reduction_ratio)
       ecd_angle_(0), rotate_speed_(0),
 
 
-      spid_(5.0f, 0.1f, 0.05f, 1000.0f, 10000.0f, 0.8f),// 速度环PID参数
-      ppid_(10.0f, 0.01f, 0.1f, 500.0f, 8000.0f, 0.9f), // 位置环PID参数
+      //      spid_(15.f, 0.0f, 4.f, 1000.0f, 10000.0f, 0.8f), // 速度环PID参数
+      //      ppid_(10.0f, 0.01f, 0.1f, 500.0f, 8000.0f, 0.9f),// 位置环PID参数
+
+      //      spid_(2.0f, 0.1f, 0.05f, 1000.0f, 10000.0f, 0.8f),// 速度环：减小Kp和Kd
+      //      ppid_(3.0f, 0.05f, 0.02f, 500.0f, 8000.0f, 0.9f), // 位置环：温和参数
+
+      spid_(0.0f, 0.0f, 0.00f, 1000.0f, 10000.0f, 0.8f),// 速度环：减小Kp和Kd
+      ppid_(0.0f, 0.00f, 0.00f, 500.0f, 8000.0f, 0.9f), // 位置环：温和参数
+
+
       target_angle_(0), fdb_angle_(0),
       target_speed_(0), fdb_speed_(0), feedforward_speed_(0),
       feedforward_intensity_(0), output_intensity_(0),
@@ -160,9 +168,9 @@ void Motor::SetPosition(float target_position, float feedforward_speed, float fe
     feedforward_speed_ = feedforward_speed;
     feedforward_intensity_ = feedforward_intensity;
 
-    // 重置PID控制器状态
-    ppid_.reset();
-    spid_.reset();
+    //    // 重置PID控制器状态
+    //    ppid_.reset();
+    //    spid_.reset();
 }
 
 void Motor::SetSpeed(float target_speed, float feedforward_intensity) {
@@ -170,8 +178,8 @@ void Motor::SetSpeed(float target_speed, float feedforward_intensity) {
     target_speed_ = target_speed;
     feedforward_intensity_ = feedforward_intensity;
 
-    // 重置速度环PID
-    spid_.reset();
+    //    // 重置速度环PID
+    //    spid_.reset();
 }
 
 void Motor::SetIntensity(float intensity) {
@@ -203,6 +211,9 @@ void Motor::handle() {
     // 计算重力补偿前馈电流（使用归一化角度）if (stop_flag == 1) {
     gravity_ff = FeedforwardIntensityCalc(normalized_angle);
 
+    control_method_ = SPEED;// 测试时强制速度控制
+    target_speed_ = 300.f;  // 测试时目标速度为0
+
 
     if (stop_flag == 0) {
         Motor_Stop();
@@ -219,6 +230,8 @@ void Motor::handle() {
         case SPEED: {
             // 速度单环控制
             float speed_output = spid_.calc(target_speed_, fdb_speed_);
+            feedforward_intensity_ = gravity_ff;
+            feedforward_intensity_ = 0.0f;
             float total_current = speed_output + feedforward_intensity_;
             setCurrent(total_current);
             break;
@@ -255,30 +268,11 @@ float Motor::FeedforwardIntensityCalc(float current_angle) {
     const float MAX_CURRENT = 10.0f;    // A，额定持续电流
     const float MIN_HOLD_CURRENT = 0.1f;// A，静摩擦补偿（可调）
 
-
-    // 角度转弧度
     const float PI = 3.14159265358979323846f;
     float rad = current_angle * PI / 180.0f;
 
-    // 输出轴重力矩（臂长度 lever）
-    float torque_out = mass * g * lever * std::sinf(rad);// Nm
-
-    //    // 电机侧所需转矩（使用对象的减速比 ratio_）
-    //    float torque_motor = torque_out / ratio_;// Nm
-    //根据同学的要求，大疆电机的K_T已经包含这个减速比的影响了，所以不需要再除以ratio_
-
-
-    // 转换为电流（可正负）
-    float current = torque_out / K_T;// A
-
-    //    // 最低保持电流阈值以克服静摩擦
-    //    if (std::fabs(current) > 0.0f && std::fabs(current) < MIN_HOLD_CURRENT) {
-    //        current = (current > 0.0f) ? MIN_HOLD_CURRENT : -MIN_HOLD_CURRENT;
-    //    }
-
-    // 限幅到额定电流
-    if (current > MAX_CURRENT) current = MAX_CURRENT;
-    if (current < -MAX_CURRENT) current = -MAX_CURRENT;
+    float torque_out = mass * g * lever * std::sinf(rad) * 16384 / 20;
+    float current = torque_out / K_T;//
 
     return current;
 }
