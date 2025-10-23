@@ -16,6 +16,7 @@ class Motor {
 private:
     float ratio_;                // 电机减速比
     float angle_ = 0.f;          // deg 输出端累计转动角度
+    float normalized_angle = 0.f;// deg 归一化角度(0~360)
     float delta_angle_ = 0.f;    // deg 输出端新转动的角度
     float ecd_angle_ = 0.f;      // deg 当前电机编码器角度
     float last_ecd_angle_ = 0.f; // deg 上次电机编码器角度
@@ -23,6 +24,17 @@ private:
     float rotate_speed_ = 0.f;   // dps 反馈转子转速
     float current_ = 0.f;        // A 反馈转矩电流
     float temp_ = 0.f;           // °C 反馈电机温度
+    float flag1 = 0.f;
+    float flag2 = 0.f;
+    float flag3 = 0.f;
+    float flag4 = 0.f;
+    float res1 = 0.f;
+    float res2 = 0.f;
+    float res3 = 0.f;
+    float res4 = 0.f;
+    float res5 = 0.f;
+    float res6 = 0.f;
+
 
     // PID控制器实例
     PID spid_;// 速度环PID
@@ -32,6 +44,9 @@ private:
     float target_angle_, fdb_angle_;
     float target_speed_, fdb_speed_, feedforward_speed_;
     float feedforward_intensity_, output_intensity_;
+    float gravity_ff = 0.0f;
+    uint16_t current_raw_ = 0;
+
 
     // 控制模式枚举
     enum {
@@ -42,6 +57,7 @@ private:
 
 public:
     //explicit M3508_Motor(const float ratio) : ratio_(ratio) {};
+    float normalizeAngle(float angle);
 
     // 获取当前角度（基于编码器）
     float getCurrentAngle();

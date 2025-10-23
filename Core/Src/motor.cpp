@@ -14,9 +14,15 @@ extern CAN_HandleTypeDef hcan1;
 extern CAN_TxHeaderTypeDef tx_header;
 extern uint8_t tx_data[8];
 extern uint32_t can_tx_mail_box_;
+extern uint8_t tx_data[8];
 
 
 float linearMapping(int in, int in_min, int in_max, float out_min,
+                    float out_max) {
+    return out_min + (out_max - out_min) * (in - in_min) / (in_max - in_min);
+}
+
+float linearMapping(float in, float in_min, float in_max, float out_min,
                     float out_max) {
     return out_min + (out_max - out_min) * (in - in_min) / (in_max - in_min);
 }
@@ -50,7 +56,6 @@ float Motor::getCurrentAngle() {
     return angle_;
 }
 
-// 获取当前速度（输出轴速度，单位dps）
 float Motor::getCurrentSpeed() {
     // 将转子转速(rpm)转换为输出轴速度(dps)
     // rpm转dps: rpm * 360 / 60 = rpm * 6
@@ -58,10 +63,22 @@ float Motor::getCurrentSpeed() {
     return (rotate_speed_ / ratio_) * 6.0f;
 }
 
+
+// 在 Motor 类中添加一个辅助函数用于角度归一化
+float Motor::normalizeAngle(float angle) {
+    // 将角度归一化到 0-360 度范围
+    angle = fmod(angle, 360.0f);
+    if (angle < 0) {// 获取当前速度（输出轴速度，单位dps）
+        angle += 360.0f;
+    }
+    return angle;
+}
+
 // 设置电机电流
 void Motor::setCurrent(float current) {
+    res1 = current;
     // 电流限幅保护
-    control_method_ = TORQUE;
+    flag1 = 1.0f;
     const float MAX_CURRENT = 20.0f;// 最大电流20A
 
     if (current > MAX_CURRENT) {
@@ -72,18 +89,22 @@ void Motor::setCurrent(float current) {
 
     output_intensity_ = current;
 
+    res2 = linearMapping(output_intensity_, -20.0f, 20.0f, -16384.0f, 16384.0f);
+
+
     // 转换为电机驱动器能识别的格式（-16384~16384对应-20A~20A）
-    int16_t current_raw = static_cast<int16_t>(linearMapping(current, -20.0f, 20.0f, -16384.0f, 16384.0f));
+    current_raw_ = static_cast<int16_t>(linearMapping(output_intensity_, -20.0f, 20.0f, -16384.0f, 16384.0f));
+
 
     // 发送电流指令
     //sendCurrentToMotor(current_raw);
 
     // 修改：打包 CAN 报文并发送（按照常见协议把电流放入 data[0..1]，大端）
-    tx_data[0] = static_cast<uint8_t>((current_raw >> 8) & 0xFF);
-    tx_data[1] = static_cast<uint8_t>((current_raw) & 0xFF);
+    tx_data[0] = static_cast<uint8_t>((current_raw_ >> 8) & 0xFF);
+    tx_data[1] = static_cast<uint8_t>((current_raw_) & 0xFF);
     // 其余字节可以按协议填充或保留为0
     // 发送电流指令
-    HAL_CAN_AddTxMessage(&hcan1, &tx_header, tx_data, &can_tx_mail_box_);
+    //HAL_CAN_AddTxMessage(&hcan1, &tx_header, tx_data, &can_tx_mail_box_);
 }
 
 // CAN发送电流指令（需要根据实际硬件实现）
@@ -169,17 +190,29 @@ void Motor::Motor_Stop() {
 
 void Motor::handle() {
     // 获取当前反馈值（需要根据实际电机接口实现）
+    flag3 = 3.0f;
+
     fdb_angle_ = getCurrentAngle();// 获取当前角度
     fdb_speed_ = getCurrentSpeed();// 获取当前速度
 
-    if (stop_flag == 1) {
+    angle_ = normalizeAngle(angle_);// 归一化累计角度
+
+    // 归一化角度
+    normalized_angle = normalizeAngle(fdb_angle_);
+
+    // 计算重力补偿前馈电流（使用归一化角度）if (stop_flag == 1) {
+    gravity_ff = FeedforwardIntensityCalc(normalized_angle);
+
+
+    if (stop_flag == 0) {
         Motor_Stop();
     }
 
     switch (control_method_) {
         case TORQUE: {
             // 直接扭矩控制
-            setCurrent(output_intensity_);
+            float total_intensity = gravity_ff;
+            setCurrent(total_intensity);
             break;
         }
 
@@ -213,7 +246,8 @@ void Motor::handle() {
 }
 
 float Motor::FeedforwardIntensityCalc(float current_angle) {
-    // 常量（依据图片规格）
+    //feedforward_intensity_ = 0.5*9.8*sin(angle_/180*3.14159265358979323846)*0.05524/0.3*16384/20;
+    flag2 = 2.0f;
     const float mass = 0.5f;            // kg
     const float lever = 0.05524f;       // m (55.24 mm)
     const float g = 9.80665f;           // m/s^2

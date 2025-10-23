@@ -410,14 +410,14 @@
               <FilePath>..\Core\Src\motor.cpp</FilePath>
             </File>
             <File>
-              <FileName>pid.cpp</FileName>
-              <FileType>8</FileType>
-              <FilePath>..\Core\Src\pid.cpp</FilePath>
-            </File>
-            <File>
               <FileName>pid.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Core\Inc\pid.h</FilePath>
+            </File>
+            <File>
+              <FileName>pid.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Core\Src\pid.cpp</FilePath>
             </File>
             <File>
               <FileName>main.c</FileName>

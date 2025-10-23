@@ -56,6 +56,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
     if (rx_header.StdId == 0x201) {
         Motor.canRxMsgCallback(rx_data);
     }
+    //Motor.handle();
 }
 
 // void HAL_TIM_PeriodElapsedCallback(CAN_HandleTypeDef *htim) {
@@ -67,10 +68,11 @@ void HAL_TIM_PeriodElapsedCallback(
         TIM_HandleTypeDef *htim) {// 1. 修正函数名和参数类型
     if (htim->Instance ==
         htim6.Instance) {// 2. 现在比较的都是 TIM_TypeDef*，类型正确
-        //HAL_CAN_AddTxMessage(&hcan1, &tx_header, tx_data, &can_tx_mail_box_);
-        if (stop_flag == 1) {
-            Motor.handle();
-        }
+
+        Motor.handle();
+        HAL_CAN_AddTxMessage(&hcan1, &tx_header, tx_data, &can_tx_mail_box_);
+
+
         // 调用 Motor 对象的 handle 方法
     }
 }
@@ -95,5 +97,32 @@ void HAL_TIM_PeriodElapsedCallback(
 //    if (huart == &huart7) {
 //        Motor.handle(rx_data);  // 调用 Motor 对象的 handle 方法
 //        HAL_UART_Receive_IT(&huart7, rx_msg, 3);
+//    }
+//}
+
+
+//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+//{
+//    if (htim->Instance == htim6.Instance)
+//    {
+//        if (!stop_flag)
+//        {
+//            HAL_CAN_AddTxMessage(&hcan1, &tx_header, tx_data, &can_tx_mail_box_);
+//        }
+//    }
+//}
+//
+//void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+//{
+//    if (hcan -> Instance == CAN1)
+//    {
+//        HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rx_header, rx_data);
+//        if (rx_header.StdId == 0x201)
+//        {
+//            motor.canRxMsgCallback(rx_data);
+//            motor.FeedforwardIntensityCalc();
+//            motor.handle();
+//            motor.output();
+//        }
 //    }
 //}
