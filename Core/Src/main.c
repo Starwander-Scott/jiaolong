@@ -150,6 +150,7 @@ int main(void) {
     HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
     HAL_TIM_Base_Start_IT(&htim6);
 
+    ticks = 10;
     /* USER CODE END 2 */
 
     /* Infinite loop */

@@ -1,6 +1,3 @@
-//
-// Created by chenyincheng on 2025/10/18.
-//
 
 #include "motor.h"
 #include "pid.h"
@@ -9,7 +6,6 @@
 
 #include "can.h"// 新增：确保 CAN 类型可用并包含 HAL 声明
 extern uint8_t stop_flag;
-// 声明在其它文件（例如 main.c / callback.cpp）定义的全局 CAN 相关变量
 extern CAN_HandleTypeDef hcan1;
 extern CAN_TxHeaderTypeDef tx_header;
 extern uint8_t tx_data[8];
@@ -27,37 +23,26 @@ float linearMapping(float in, float in_min, float in_max, float out_min,
     return out_min + (out_max - out_min) * (in - in_min) / (in_max - in_min);
 }
 
-Motor::Motor(float reduction_ratio)
-    :
+Motor::Motor(float reduction_ratio) :
+
+                                      ratio_(reduction_ratio),
+                                      angle_(0), last_ecd_angle_(0), delta_ecd_angle_(0), delta_angle_(0),
+                                      current_(0), temp_(0),
+                                      ecd_angle_(0), rotate_speed_(0),
 
 
-      // 初始化原有成员
+                                      //spid_(0.5f, 0.1f, 1.00f, 1000.0f, 10000.0f, 0.6f),
+                                      //ppid_(0.0f, 0.00f, 0.00f, 500.0f, 8000.0f, 0.9f),
 
-      //reduction_ratio_(reduction_ratio),
-      ratio_(reduction_ratio),
-      angle_(0), last_ecd_angle_(0), delta_ecd_angle_(0), delta_angle_(0),
-      current_(0), temp_(0),
-      ecd_angle_(0), rotate_speed_(0),
-
-
-      //      spid_(15.f, 0.0f, 4.f, 1000.0f, 10000.0f, 0.8f), // 速度环PID参数
-      //      ppid_(10.0f, 0.01f, 0.1f, 500.0f, 8000.0f, 0.9f),// 位置环PID参数
-
-      //      spid_(2.0f, 0.1f, 0.05f, 1000.0f, 10000.0f, 0.8f),// 速度环：减小Kp和Kd
-      //      ppid_(3.0f, 0.05f, 0.02f, 500.0f, 8000.0f, 0.9f), // 位置环：温和参数
-
-      spid_(0.0f, 0.0f, 0.00f, 1000.0f, 10000.0f, 0.8f),// 速度环：减小Kp和Kd
-      ppid_(0.0f, 0.00f, 0.00f, 500.0f, 8000.0f, 0.9f), // 位置环：温和参数
-
-
-      target_angle_(0), fdb_angle_(0),
-      target_speed_(0), fdb_speed_(0), feedforward_speed_(0),
-      feedforward_intensity_(0), output_intensity_(0),
-      control_method_(TORQUE)// 默认扭矩控制
-{
-    // 其他初始化代码...
+                                      target_angle_(0), fdb_angle_(0),
+                                      target_speed_(0), fdb_speed_(0), feedforward_speed_(0),
+                                      feedforward_intensity_(0), output_intensity_(0),
+                                      control_method_(TORQUE) {
 }
 
+PID Motor::spid_ = PID(0.5f, 0.1f, 1.0f, 1000.0f, 10000.0f, 0.6f);
+
+PID Motor::ppid_ = PID(0.0f, 0.00f, 0.00f, 500.0f, 8000.0f, 0.9f);
 // 获取当前角度（输出轴角度）
 float Motor::getCurrentAngle() {
     // 直接返回已经计算好的输出轴累计角度
@@ -65,18 +50,14 @@ float Motor::getCurrentAngle() {
 }
 
 float Motor::getCurrentSpeed() {
-    // 将转子转速(rpm)转换为输出轴速度(dps)
-    // rpm转dps: rpm * 360 / 60 = rpm * 6
-    // 考虑减速比: 转子转速 / 减速比 = 输出轴转速
-    return (rotate_speed_ / ratio_) * 6.0f;
+    return rotate_speed_;
 }
 
 
 // 在 Motor 类中添加一个辅助函数用于角度归一化
 float Motor::normalizeAngle(float angle) {
-    // 将角度归一化到 0-360 度范围
     angle = fmod(angle, 360.0f);
-    if (angle < 0) {// 获取当前速度（输出轴速度，单位dps）
+    if (angle < 0) {
         angle += 360.0f;
     }
     return angle;
@@ -85,43 +66,21 @@ float Motor::normalizeAngle(float angle) {
 // 设置电机电流
 void Motor::setCurrent(float current) {
     res1 = current;
-    // 电流限幅保护
     flag1 = 1.0f;
-    const float MAX_CURRENT = 20.0f;// 最大电流20A
-
-    if (current > MAX_CURRENT) {
-        current = MAX_CURRENT;
-    } else if (current < -MAX_CURRENT) {
-        current = -MAX_CURRENT;
-    }
 
     output_intensity_ = current;
 
-    res2 = linearMapping(output_intensity_, -20.0f, 20.0f, -16384.0f, 16384.0f);
-
+    res2 = output_intensity_;
 
     // 转换为电机驱动器能识别的格式（-16384~16384对应-20A~20A）
-    current_raw_ = static_cast<int16_t>(linearMapping(output_intensity_, -20.0f, 20.0f, -16384.0f, 16384.0f));
+    current_raw_ = static_cast<int16_t>(output_intensity_);
 
-
-    // 发送电流指令
-    //sendCurrentToMotor(current_raw);
+    res3 = current_raw_;
 
     // 修改：打包 CAN 报文并发送（按照常见协议把电流放入 data[0..1]，大端）
     tx_data[0] = static_cast<uint8_t>((current_raw_ >> 8) & 0xFF);
     tx_data[1] = static_cast<uint8_t>((current_raw_) & 0xFF);
-    // 其余字节可以按协议填充或保留为0
-    // 发送电流指令
-    //HAL_CAN_AddTxMessage(&hcan1, &tx_header, tx_data, &can_tx_mail_box_);
 }
-
-// CAN发送电流指令（需要根据实际硬件实现）
-//void Motor::sendCurrentToMotor(int16_t current) {
-// 这里需要根据您的CAN协议实现
-// 示例：将电流值打包并发送给电机驱动器
-// uint8_t data[8] = {...};
-// CAN_Send(motor_id, data);
-//}
 
 
 void Motor::canRxMsgCallback(const uint8_t rx_data[8]) {
@@ -167,26 +126,18 @@ void Motor::SetPosition(float target_position, float feedforward_speed, float fe
     target_angle_ = target_position;
     feedforward_speed_ = feedforward_speed;
     feedforward_intensity_ = feedforward_intensity;
-
-    //    // 重置PID控制器状态
-    //    ppid_.reset();
-    //    spid_.reset();
 }
 
 void Motor::SetSpeed(float target_speed, float feedforward_intensity) {
     control_method_ = SPEED;
     target_speed_ = target_speed;
     feedforward_intensity_ = feedforward_intensity;
-
-    //    // 重置速度环PID
-    //    spid_.reset();
 }
 
 void Motor::SetIntensity(float intensity) {
     control_method_ = TORQUE;
     output_intensity_ = intensity;
 }
-//这个setIntensity函数不用了，用handle里面直接用output_intensity_就行
 
 
 void Motor::Motor_Stop() {
@@ -205,12 +156,7 @@ void Motor::handle() {
 
     angle_ = normalizeAngle(angle_);// 归一化累计角度
 
-    // 归一化角度
-    normalized_angle = normalizeAngle(fdb_angle_);
-
-    // 计算重力补偿前馈电流（使用归一化角度）if (stop_flag == 1) {
-    gravity_ff = FeedforwardIntensityCalc(normalized_angle);
-
+    gravity_ff = FeedforwardIntensityCalc(angle_);
     control_method_ = SPEED;// 测试时强制速度控制
     target_speed_ = 300.f;  // 测试时目标速度为0
 
@@ -231,18 +177,16 @@ void Motor::handle() {
             // 速度单环控制
             float speed_output = spid_.calc(target_speed_, fdb_speed_);
             feedforward_intensity_ = gravity_ff;
-            feedforward_intensity_ = 0.0f;
+            //feedforward_intensity_ = 0.0f;
             float total_current = speed_output + feedforward_intensity_;
             setCurrent(total_current);
             break;
         }
 
         case POSITION_SPEED: {
-            // 位置-速度双环控制
-            // 外环：位置环计算目标速度
+
             float target_speed_from_position = ppid_.calc(target_angle_, fdb_angle_);
 
-            // 内环：速度环计算输出电流
             float total_target_speed = target_speed_from_position + feedforward_speed_;
             float speed_output = spid_.calc(total_target_speed, fdb_speed_);
             float total_current = speed_output + feedforward_intensity_;
@@ -272,7 +216,7 @@ float Motor::FeedforwardIntensityCalc(float current_angle) {
     float rad = current_angle * PI / 180.0f;
 
     float torque_out = mass * g * lever * std::sinf(rad) * 16384 / 20;
-    float current = torque_out / K_T;//
+    float current = torque_out / K_T;
 
     return current;
 }

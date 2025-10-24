@@ -34,11 +34,17 @@ private:
     float res4 = 0.f;
     float res5 = 0.f;
     float res6 = 0.f;
+    int result = 0;
+    int result1 = 0;
+    int result2 = 0;
+    int16_t result3 = 0;
+
+    int sum = 0;
 
 
     // PID控制器实例
-    PID spid_;// 速度环PID
-    PID ppid_;// 位置环PID
+    static PID spid_;// 速度环PID
+    static PID ppid_;// 位置环PID
 
     // 控制相关变量
     float target_angle_, fdb_angle_;

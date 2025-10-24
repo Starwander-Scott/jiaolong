@@ -29,7 +29,8 @@
 // 带参数的构造函数
 PID::PID(float kp, float ki, float kd, float i_max, float out_max, float d_filter_k)
     : kp_(kp), ki_(ki), kd_(kd), i_max_(i_max), out_max_(out_max), d_filter_k_(d_filter_k) {
-    reset();// 初始化时重置所有状态变量
+    //reset();// 初始化时重置所有状态变量
+    sum++;
 }
 
 // 默认构造函数，调用带参数构造函数并初始化为0
