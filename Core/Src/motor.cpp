@@ -12,6 +12,8 @@ extern uint8_t tx_data[8];
 extern uint32_t can_tx_mail_box_;
 extern uint8_t tx_data[8];
 
+float target_speed_ = 500.0f;
+float target_angle_ = 80.0f;
 
 float linearMapping(int in, int in_min, int in_max, float out_min,
                     float out_max) {
@@ -22,6 +24,7 @@ float linearMapping(float in, float in_min, float in_max, float out_min,
                     float out_max) {
     return out_min + (out_max - out_min) * (in - in_min) / (in_max - in_min);
 }
+
 
 Motor::Motor(float reduction_ratio) :
 
@@ -34,15 +37,21 @@ Motor::Motor(float reduction_ratio) :
                                       //spid_(0.5f, 0.1f, 1.00f, 1000.0f, 10000.0f, 0.6f),
                                       //ppid_(0.0f, 0.00f, 0.00f, 500.0f, 8000.0f, 0.9f),
 
-                                      target_angle_(0), fdb_angle_(0),
-                                      target_speed_(0), fdb_speed_(0), feedforward_speed_(0),
+                                      //                                      target_angle_(0),
+                                      fdb_angle_(0),
+                                      //                                      target_speed_(0),
+                                      fdb_speed_(0), feedforward_speed_(0),
                                       feedforward_intensity_(0), output_intensity_(0),
                                       control_method_(TORQUE) {
 }
 
 PID Motor::spid_ = PID(0.5f, 0.1f, 1.0f, 1000.0f, 10000.0f, 0.6f);
 
-PID Motor::ppid_ = PID(0.0f, 0.00f, 0.00f, 500.0f, 8000.0f, 0.9f);
+PID Motor::ppid_ = PID(10.0f, 0.00f, 0.00f, 500.0f, 8000.0f, 0.9f);
+
+//float Motor::target_speed_ = 0.0f;
+
+
 // 获取当前角度（输出轴角度）
 float Motor::getCurrentAngle() {
     // 直接返回已经计算好的输出轴累计角度
@@ -157,11 +166,11 @@ void Motor::handle() {
     angle_ = normalizeAngle(angle_);// 归一化累计角度
 
     gravity_ff = FeedforwardIntensityCalc(angle_);
-    control_method_ = SPEED;// 测试时强制速度控制
-    target_speed_ = 300.f;  // 测试时目标速度为0
+    control_method_ = POSITION_SPEED;// 测试时强制速度控制
+                                     //    target_speed_ = 300.f;  // 测试时目标速度为0
+    6
 
-
-    if (stop_flag == 0) {
+            if (stop_flag == 0) {
         Motor_Stop();
     }
 
