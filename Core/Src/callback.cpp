@@ -73,6 +73,8 @@ void HAL_TIM_PeriodElapsedCallback(
         HAL_CAN_AddTxMessage(&hcan1, &tx_header, tx_data, &can_tx_mail_box_);
 
 
+
+
         // 调用 Motor 对象的 handle 方法
     }
 }

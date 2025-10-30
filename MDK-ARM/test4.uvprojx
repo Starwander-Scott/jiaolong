@@ -138,7 +138,7 @@
           </Flash1>
           <bUseTDR>1</bUseTDR>
           <Flash2>BIN\UL2V8M.DLL</Flash2>
-          <Flash3></Flash3>
+          <Flash3>"" ()</Flash3>
           <Flash4></Flash4>
           <pFcarmOut></pFcarmOut>
           <pFcarmGrp></pFcarmGrp>
@@ -395,9 +395,9 @@
           <GroupName>Application/User/Core</GroupName>
           <Files>
             <File>
-              <FileName>callback.cpp</FileName>
+              <FileName>motor.cpp</FileName>
               <FileType>8</FileType>
-              <FilePath>..\Core\Src\callback.cpp</FilePath>
+              <FilePath>..\Core\Src\motor.cpp</FilePath>
             </File>
             <File>
               <FileName>motor.h</FileName>
@@ -405,19 +405,14 @@
               <FilePath>..\Core\Inc\motor.h</FilePath>
             </File>
             <File>
-              <FileName>motor.cpp</FileName>
+              <FileName>pid.cpp</FileName>
               <FileType>8</FileType>
-              <FilePath>..\Core\Src\motor.cpp</FilePath>
+              <FilePath>..\Core\Src\pid.cpp</FilePath>
             </File>
             <File>
               <FileName>pid.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Core\Inc\pid.h</FilePath>
-            </File>
-            <File>
-              <FileName>pid.cpp</FileName>
-              <FileType>8</FileType>
-              <FilePath>..\Core\Src\pid.cpp</FilePath>
             </File>
             <File>
               <FileName>main.c</FileName>
@@ -540,6 +535,11 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
+            </File>
+            <File>
+              <FileName>callback.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Core\Src\callback.cpp</FilePath>
             </File>
             <File>
               <FileName>tim.c</FileName>

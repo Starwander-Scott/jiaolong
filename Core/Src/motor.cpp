@@ -45,9 +45,9 @@ Motor::Motor(float reduction_ratio) :
                                       control_method_(TORQUE) {
 }
 
-PID Motor::spid_ = PID(0.5f, 0.1f, 1.0f, 1000.0f, 10000.0f, 0.6f);
+PID Motor::spid_ = PID(17.f, 0.0f, 2.0f, 1000.0f, 10000.0f, 0.1f);//
 
-PID Motor::ppid_ = PID(10.0f, 0.00f, 0.00f, 500.0f, 8000.0f, 0.9f);
+PID Motor::ppid_ = PID(120.f, 3.00f, 50.f, 40.0f, 8000.0f, 0.1f);
 
 //float Motor::target_speed_ = 0.0f;
 
@@ -168,11 +168,11 @@ void Motor::handle() {
     gravity_ff = FeedforwardIntensityCalc(angle_);
     control_method_ = POSITION_SPEED;// 测试时强制速度控制
                                      //    target_speed_ = 300.f;  // 测试时目标速度为0
-    6
+    
 
-            if (stop_flag == 0) {
-        Motor_Stop();
-    }
+           // if (stop_flag == 0) {
+        //Motor_Stop();
+    //}
 
     switch (control_method_) {
         case TORQUE: {
